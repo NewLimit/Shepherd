@@ -149,6 +149,7 @@ def cluster_reads(seq_list, seq_to_freq_dict, k_mer_dict, q, p,
 
     pb_to_freq_dict = {}
     seq_to_clust_dict = {}
+    seq_to_pb_dict = {} # sequence to putative barcode
     for i, S_c in enumerate(seq_list):
         f_c = seq_to_freq_dict[S_c]
         if f_c < f:
@@ -166,6 +167,9 @@ def cluster_reads(seq_list, seq_to_freq_dict, k_mer_dict, q, p,
                         if (f_c == 1 and min_dist <= tau) or min_dist == 1:
                             seq_to_clust_dict[S_c] = seq_to_clust_dict[S_b]
                             pb_to_freq_dict[S_b] += f_c
+
+                            # Add to putative barcode dict
+                            seq_to_pb_dict[S_c] = S_b
                             continue
 
                         f_b = seq_to_freq_dict[S_b]
@@ -173,12 +177,14 @@ def cluster_reads(seq_list, seq_to_freq_dict, k_mer_dict, q, p,
                         if logK > bft:
                             seq_to_clust_dict[S_c] = seq_to_clust_dict[S_b]
                             pb_to_freq_dict[S_b] += f_c
+                            seq_to_pb_dict[S_c] = S_b
                             continue
 
         seq_to_clust_dict[S_c] = i
         pb_to_freq_dict[S_c] = f_c
+        seq_to_pb_dict[S_c] = S_c
 
-    return seq_to_clust_dict, pb_to_freq_dict
+    return seq_to_clust_dict, pb_to_freq_dict, seq_to_pb_dict
 
 def correct_deletions(deletions_dict, pb_to_freq_dict, seq_to_clust_dict, l):
     for seq, freq in deletions_dict.items():
@@ -307,7 +313,7 @@ if __name__ == '__main__':
     print('k-mer Index creation time: ' + str(end - start))
 
     start = time.time()
-    seq_to_clust_dict, pb_to_freq_dict = cluster_reads(seq_list, seq_freq_dict, k_mer_dict, q, p, eps, tau, f, l,
+    seq_to_clust_dict, pb_to_freq_dict, seq_to_pb_dict = cluster_reads(seq_list, seq_freq_dict, k_mer_dict, q, p, eps, tau, f, l,
                                                         p_no_err, total_err_rate, logdenom, bft)
     seq_to_clust_dict, pb_to_freq_dict = correct_insertions(insertions_dict, pb_to_freq_dict, seq_to_clust_dict, l)
     seq_to_clust_dict, pb_to_freq_dict = correct_deletions(deletions_dict, pb_to_freq_dict, seq_to_clust_dict, l)
@@ -328,6 +334,15 @@ if __name__ == '__main__':
         for key, value in seq_to_clust_dict.items():
             if i == 0:
                 writer.writerow(['sequence', 'cluster'])
+            writer.writerow([key, value])
+            i += 1
+    
+    with open(file_prefix + '_pb_seq.csv', 'w', newline='') as fh:
+        writer = csv.writer(fh)
+        i = 0
+        for key, value in seq_to_pb_dict.items():
+            if i == 0:
+                writer.writerow(['sequence', 'putative_barcode'])
             writer.writerow([key, value])
             i += 1
 
